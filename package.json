@@ -4,19 +4,24 @@
   "description": "",
   "main": "dist/lib/index.js",
   "scripts": {
-    "build": "bun build ./lib --outdir ./dist --target node",
-    "dev": "bun build ./lib --outdir ./dist --target node --watch"
+    "build": "swc ./lib -d ./dist --config-file .swcrc",
+    "dev": "swc ./lib -d ./dist --config-file .swcrc --watch"
   },
   "keywords": [],
   "author": "",
   "license": "ISC",
   "dependencies": {
+    "@swc/cli": "^0.3.12",
+    "@swc/core": "^1.5.6",
     "zod": "^3.23.8"
   },
   "peerDependencies": {
     "typescript": "^5.0.0"
   },
   "devDependencies": {
-    "@types/bun": "latest"
+    "@types/bun": "latest",
+    "@types/node": "^20.12.11",
+    "chokidar": "^3.6.0",
+    "typescript": "^5.4.5"
   }
 }
