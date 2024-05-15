@@ -7,7 +7,7 @@ import {
   ObjectId,
   UpdateFilter,
 } from "mongodb";
-import { ZodObject, ZodSchema, input, output } from "zod";
+import { ZodObject, ZodRawShape, ZodSchema, input, output, z } from "zod";
 
 export class ZoboomafooValidationError extends Error {
   constructor(message: string) {
@@ -88,7 +88,7 @@ function parseModel<T extends ZodSchema>(schema: T, data: input<T>): output<T> {
   }
 }
 
-class ModelImpl<T extends ZodObject<any>> implements IModel<T> {
+class ZoboomafooModel<T extends ZodObject<any>> implements IModel<T> {
   constructor(private schema: T, private options: ModelOptions) {}
   async insertOne(data: input<T>) {
     const parsedData = parseModel(this.schema, data);
@@ -206,9 +206,10 @@ class ModelImpl<T extends ZodObject<any>> implements IModel<T> {
   }
 }
 
-export function Model<T extends ZodObject<any>>(
+export function Model<T extends ZodRawShape>(
   shape: T,
   options: ModelOptions
-): IModel<T> {
-  return new ModelImpl(shape, options);
+) {
+  const model = new ZoboomafooModel(z.object(shape), options);
+  return model;
 }
