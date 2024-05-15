@@ -3,9 +3,11 @@ import {
   Document,
   Filter,
   IndexDirection,
+  InsertOneOptions,
   MongoClient,
   ObjectId,
   UpdateFilter,
+  UpdateOptions,
 } from "mongodb";
 import { ZodObject, ZodRawShape, ZodSchema, input, output, z } from "zod";
 
@@ -56,10 +58,14 @@ type IBaseSchema = {
 type DocumentDefinition<T extends ZodObject<any>> = output<T> & IBaseSchema;
 
 interface IModel<T extends ZodObject<any>> {
-  insertOne(data: input<T>): Promise<DocumentDefinition<T>>;
+  insertOne(
+    data: input<T>,
+    insertOptions?: InsertOneOptions
+  ): Promise<DocumentDefinition<T>>;
   updateOne(
     filter: Filter<input<T>>,
-    data: UpdateFilter<input<T>>
+    data: UpdateFilter<input<T>>,
+    updateOptions?: UpdateOptions
   ): Promise<DocumentDefinition<T> | null>;
   deleteOne(filter: Filter<input<T>>): Promise<boolean>;
   findById: (id: string | ObjectId) => Promise<DocumentDefinition<T> | null>;
@@ -90,7 +96,7 @@ function parseModel<T extends ZodSchema>(schema: T, data: input<T>): output<T> {
 
 class ZoboomafooModel<T extends ZodObject<any>> implements IModel<T> {
   constructor(private schema: T, private options: ModelOptions) {}
-  async insertOne(data: input<T>) {
+  async insertOne(data: input<T>, insertOptions?: InsertOneOptions) {
     const parsedData = parseModel(this.schema, data);
     const collection = Zoboomafoo.db.collection(this.options.collectionName);
     const decoratedData = {
@@ -98,13 +104,17 @@ class ZoboomafooModel<T extends ZodObject<any>> implements IModel<T> {
       createdAt: new Date(),
       updatedAt: new Date(),
     };
-    const { insertedId } = await collection.insertOne(decoratedData);
+    const { insertedId } = await collection.insertOne(
+      decoratedData,
+      insertOptions
+    );
     return { ...decoratedData, _id: insertedId };
   }
 
   async updateOne(
     filter: Filter<input<T>>,
-    data: UpdateFilter<input<T>>
+    data: UpdateFilter<input<T>>,
+    updateOptions?: UpdateOptions
   ): Promise<DocumentDefinition<T> | null> {
     const payload = data;
     // TODO validate schema on other operations
@@ -124,7 +134,8 @@ class ZoboomafooModel<T extends ZodObject<any>> implements IModel<T> {
     const collection = Zoboomafoo.db.collection(this.options.collectionName);
     await collection.updateOne(
       filter as Filter<Document>,
-      payload as UpdateFilter<Document>
+      payload as UpdateFilter<Document>,
+      updateOptions
     );
     return data as DocumentDefinition<T>;
   }
@@ -204,12 +215,17 @@ class ZoboomafooModel<T extends ZodObject<any>> implements IModel<T> {
 
     await handler();
   }
+
+  public type: output<T> = {};
 }
 
-export function Model<T extends ZodRawShape>(
-  shape: T,
-  options: ModelOptions
-) {
+export function Model<T extends ZodRawShape>(shape: T, options: ModelOptions) {
   const model = new ZoboomafooModel(z.object(shape), options);
   return model;
 }
+
+export const ObjectIdSchema = z.custom<string | ObjectId>().transform((value) => {
+  return new ObjectId(value);
+});
+
+export type ModelType<T extends ZoboomafooModel<any>> = T["type"] & IBaseSchema;
