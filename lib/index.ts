@@ -70,6 +70,7 @@ interface IModel<T extends ZodObject<any>> {
   deleteOne(filter: Filter<input<T>>): Promise<boolean>;
   findById: (id: string | ObjectId) => Promise<DocumentDefinition<T> | null>;
   findOne: (filter: Filter<input<T>>) => Promise<DocumentDefinition<T> | null>;
+  findMany: (filter: Filter<input<T>>) => Promise<DocumentDefinition<T>[]>;
 
   defineIndexes: (
     indexes: Array<
@@ -95,6 +96,8 @@ function parseModel<T extends ZodSchema>(schema: T, data: input<T>): output<T> {
 }
 
 class ZoboomafooModel<T extends ZodObject<any>> implements IModel<T> {
+  public type: output<T> = {};
+
   constructor(private schema: T, private options: ModelOptions) {}
   async insertOne(data: input<T>, insertOptions?: InsertOneOptions) {
     const parsedData = parseModel(this.schema, data);
@@ -165,6 +168,12 @@ class ZoboomafooModel<T extends ZodObject<any>> implements IModel<T> {
     return res as DocumentDefinition<T>;
   }
 
+  async findMany(filter: Filter<input<T>>) {
+    const collection = Zoboomafoo.db.collection(this.options.collectionName);
+    const res = await collection.find(filter as Filter<Document>).toArray();
+    return res as DocumentDefinition<T>[];
+  }
+
   async defineIndexes(
     indexes: Array<
       [
@@ -215,8 +224,6 @@ class ZoboomafooModel<T extends ZodObject<any>> implements IModel<T> {
 
     await handler();
   }
-
-  public type: output<T> = {};
 }
 
 export function Model<T extends ZodRawShape>(shape: T, options: ModelOptions) {
@@ -224,8 +231,10 @@ export function Model<T extends ZodRawShape>(shape: T, options: ModelOptions) {
   return model;
 }
 
-export const ObjectIdSchema = z.custom<string | ObjectId>().transform((value) => {
-  return new ObjectId(value);
-});
+export const ObjectIdSchema = z
+  .custom<string | ObjectId>()
+  .transform((value) => {
+    return new ObjectId(value);
+  });
 
 export type ModelType<T extends ZoboomafooModel<any>> = T["type"] & IBaseSchema;
